@@ -25,9 +25,9 @@ pub fn app(id: &str) -> Option<ImageSource<'static>> {
 /// An ArtCraft trademark, not covered by the MIT/Apache license (`docs/brand/LICENSE-brand.txt`).
 pub fn artcraft_logo(dark_background: bool) -> ImageSource<'static> {
     if dark_background {
-        egui::include_image!("../../../docs/brand/artcraft-logo-white.svg")
+        egui::include_image!("../../../assets/harbor/icon.png")
     } else {
-        egui::include_image!("../../../docs/brand/artcraft-logo.svg")
+        egui::include_image!("../../../assets/harbor/icon.png")
     }
 }
 
@@ -48,5 +48,5 @@ pub fn social(service: &str) -> Option<ImageSource<'static>> {
 
 /// The ArtCraft "A" mark in blue, as supplied: the launcher's app icon and getartcraft.com's favicon.
 pub fn artcraft_mark() -> ImageSource<'static> {
-    egui::include_image!("../../../docs/brand/artcraft-mark.svg")
+    egui::include_image!("../../../assets/harbor/icon.png")
 }

@@ -1,3 +1,6 @@
+## Harbor fork override
+This fork is Harbor Studio, a native paint/vector document host. The official installer and updater are not part of this application. Preserve original licenses and attribution.
+
 # AGENTS.md: guide for AI agents and contributors
 
 ArtCraft Launcher installs, updates and launches the **Craft App Suite** (PhotoCraft, LightCraft,

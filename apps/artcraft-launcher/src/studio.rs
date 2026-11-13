@@ -1,7 +1,11 @@
 //! In-process native editors over one layered document. Experimental desktop host.
 use crate::studio_document::Bridge;
 use artcraft_canvas::SharedView;
-use artcraft_launcher_ui_egui::tl;
+macro_rules! tl {
+    ($text:expr) => {
+        $text
+    };
+}
 use eframe::App;
 use photocraft_ui_egui::PhotocraftApp;
 use std::path::PathBuf;
@@ -31,10 +35,9 @@ pub(crate) struct Studio {
 pub fn run(args: &[String]) -> eframe::Result {
     let path = args.iter().map(PathBuf::from).find(|p| p.is_file());
     let mut options = crate::native_options(false);
-    options.viewport =
-        options.viewport.with_decorations(true).with_app_id("ai.storyteller.artcraft-launcher.studio").with_inner_size([1440.0, 940.0]);
+    options.viewport = options.viewport.with_decorations(true).with_app_id("io.durtyrobbin.harbor-studio").with_inner_size([1440.0, 940.0]);
     eframe::run_native(
-        "ArtCraft Launcher",
+        "Harbor Paint — Vector Studio",
         options,
         Box::new(move |cc| {
             let mut app = Studio::new();
@@ -124,7 +127,7 @@ impl Studio {
             }
             Editor::Vector => {
                 // Reload native bytes after a parent undo. Ordinary round trips
-                // retain the native VectorCraft history. A parent history change
+                // retain the native Harbor Vector history. A parent history change
                 // replaces its committed replica, avoiding stale duplicate tabs.
                 if !self.bridge.as_ref().map(|b| b.resume(&self.photo.session, &mut self.vector.session)).transpose()?.unwrap_or(false) {
                     let obsolete = self.bridge.as_ref().and_then(|b| {
@@ -241,7 +244,7 @@ impl Studio {
         }
         let state = self.photo.session.active().ok_or("Open a document first.")?;
         let Some(path) =
-            rfd::FileDialog::new().add_filter("PhotoCraft native document", &["pcraft"]).set_file_name("ArtCraft-project.pcraft").save_file()
+            rfd::FileDialog::new().add_filter("Harbor Paint native document", &["pcraft"]).set_file_name("Harbor-project.pcraft").save_file()
         else {
             return Ok(());
         };
@@ -301,7 +304,7 @@ impl Studio {
             None => {
                 egui::CentralPanel::default().show(ui, |ui| {
                     ui.heading(tl!("Choose an editor for this file"));
-                    ui.label(tl!("PhotoCraft and VectorCraft share this project's canvas and native contents."));
+                    ui.label(tl!("Harbor Paint and Harbor Vector share this project's canvas and native contents."));
                 });
             }
         }
@@ -347,9 +350,23 @@ impl App for Studio {
         let mut target = None;
         egui::Panel::top("studio-cycler").show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.strong("ArtCraft Launcher");
+                ui.strong("Harbor Paint — Vector Studio");
+                if ui.add_enabled(!self.dirty(), egui::Button::new("New painting")).clicked() {
+                    match self.photo.session.execute("file.new", serde_json::json!({"name":"Untitled painting", "width":1600, "height":1000})) {
+                        Ok(_) => {
+                            self.photo.sync_views();
+                            if let Some(state) = self.photo.session.active() {
+                                self.view = SharedView::new(state.doc.id.0, 1);
+                                self.bridge = None;
+                                self.editor = None;
+                                target = Some(Editor::Photo);
+                            }
+                        }
+                        Err(error) => self.status = error.to_string(),
+                    }
+                }
                 if ui.add_enabled(!self.dirty(), egui::Button::new(tl!("Open…"))).clicked()
-                    && let Some(path) = rfd::FileDialog::new().add_filter("PNG / JPEG / PhotoCraft", &["png", "jpg", "jpeg", "pcraft"]).pick_file()
+                    && let Some(path) = rfd::FileDialog::new().add_filter("PNG / JPEG / Harbor Paint", &["png", "jpg", "jpeg", "pcraft"]).pick_file()
                 {
                     self.open(path);
                 }
@@ -358,10 +375,10 @@ impl App for Studio {
                 {
                     self.status = error;
                 }
-                if ui.selectable_label(self.editor == Some(Editor::Photo), "PhotoCraft").clicked() {
+                if ui.selectable_label(self.editor == Some(Editor::Photo), "Harbor Paint").clicked() {
                     target = Some(Editor::Photo);
                 }
-                if ui.selectable_label(self.editor == Some(Editor::Vector), "VectorCraft").clicked() {
+                if ui.selectable_label(self.editor == Some(Editor::Vector), "Harbor Vector").clicked() {
                     target = Some(Editor::Vector);
                 }
                 ui.label(tl!("Shared viewport preview"));
@@ -398,7 +415,7 @@ impl App for Studio {
         }
         self.editor_ui(ui, frame);
         if let Some(state) = self.photo.session.active() {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!("{} — ArtCraft Launcher", state.doc.name)));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!("{} — Harbor Studio", state.doc.name)));
         }
     }
 }
@@ -407,6 +424,21 @@ impl App for Studio {
 mod tests {
     use super::*;
     use egui_kittest::kittest::Queryable;
+
+    #[test]
+    fn new_painting_opens_and_accepts_an_editable_vector_layer() {
+        let mut app = Studio::new();
+        app.photo.session.execute("file.new", serde_json::json!({"width":160,"height":100,"name":"New painting test"})).unwrap();
+        app.photo.sync_views();
+        let id = app.photo.session.active().unwrap().doc.id.0;
+        app.view = SharedView::new(id, 1);
+        let ctx = egui::Context::default();
+        app.switch(Editor::Photo, &ctx).unwrap();
+        app.switch(Editor::Vector, &ctx).unwrap();
+        app.vector.session.execute("shape.rectangle", &serde_json::json!({"x":10,"y":10,"width":80,"height":60})).unwrap();
+        app.switch(Editor::Photo, &ctx).unwrap();
+        assert!(app.photo.session.active().unwrap().doc.layers.iter().any(|layer| matches!(&layer.content, photocraft_doc::LayerContent::Smart(_))));
+    }
 
     /// Isolated host timings; excludes window presentation and GPU frame latency.
     #[test]

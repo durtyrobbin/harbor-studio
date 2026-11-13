@@ -6,7 +6,7 @@
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=../../assets/app-icon/artcraft-launcher.ico");
+    println!("cargo:rerun-if-changed=../../assets/harbor/icon.ico");
     println!("cargo:rerun-if-env-changed=ARTCRAFT_LAUNCHER_REQUIRE_WINRES");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
         return;
@@ -17,10 +17,10 @@ fn main() {
         println!("cargo:rustc-link-arg=/DEBUG:NONE");
     }
     let mut res = winresource::WindowsResource::new();
-    res.set_icon("../../assets/app-icon/artcraft-launcher.ico")
-        .set("ProductName", "ArtCraft Launcher")
-        .set("FileDescription", "ArtCraft Launcher")
-        .set("CompanyName", "Learning Machines LLC")
+    res.set_icon("../../assets/harbor/icon.ico")
+        .set("ProductName", "Harbor Studio")
+        .set("FileDescription", "Harbor Studio")
+        .set("CompanyName", "Harbor contributors")
         .set("LegalCopyright", "Copyright (c) the ArtCraft Launcher authors. MIT OR Apache-2.0.")
         .set("OriginalFilename", "artcraft-launcher.exe")
         .set("InternalName", "artcraft-launcher");

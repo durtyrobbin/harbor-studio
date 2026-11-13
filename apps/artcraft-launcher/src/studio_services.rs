@@ -9,6 +9,20 @@ pub fn supported_file(name: &str) -> bool {
 pub fn photo() -> photocraft_ui_egui::Services {
     use photocraft_ui_egui::file_dialog::{FileDialogAnswer, FileDialogRequest};
     photocraft_ui_egui::Services {
+        load_prefs: Some(Box::new(|| {
+            let path = preferences_path().ok()?;
+            if std::fs::metadata(&path).ok()?.len() > 64 * 1024 * 1024 {
+                return None;
+            }
+            std::fs::read_to_string(path).ok()
+        })),
+        save_prefs: Some(Box::new(|text| {
+            let path = preferences_path()?;
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+            }
+            photocraft_format::atomic_write(&path, text.as_bytes()).map_err(|error| error.to_string())
+        })),
         import: Some(Box::new(|name, bytes, depth| {
             if !supported_file(name) {
                 return Err("This shared viewport preview opens PNG, JPEG, and .pcraft files.".into());
@@ -58,4 +72,18 @@ pub fn photo() -> photocraft_ui_egui::Services {
         })),
         ..Default::default()
     }
+}
+
+/// Studio preferences are isolated from both installed editors and the launcher.
+fn preferences_path() -> Result<std::path::PathBuf, String> {
+    let directory = if let Some(path) = std::env::var_os("HARBOR_STUDIO_CONFIG_DIR").filter(|s| !s.is_empty()) {
+        std::path::PathBuf::from(path)
+    } else {
+        std::env::current_exe()
+            .map_err(|error| error.to_string())?
+            .parent()
+            .ok_or("The executable has no parent directory.")?
+            .join("HarborStudioData")
+    };
+    Ok(directory.join("preferences.json"))
 }
